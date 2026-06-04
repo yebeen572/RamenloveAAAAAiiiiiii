@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 광고 대행사 — 7인조</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #242836;
+      --border: #2e3348;
+      --text: #e8eaf0;
+      --muted: #8b90a5;
+      --accent: #6c63ff;
+      --ae: #c4b5fd;
+      --copy: #5eead4;
+      --prod: #fca5a5;
+      --ceo: #fdba74;
+      --done: #86efac;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    header {
+      padding: 1.5rem 2rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    header h1 { font-size: 1.25rem; font-weight: 700; }
+    header p { font-size: 0.85rem; color: var(--muted); margin-top: 0.2rem; }
+
+    .badge {
+      background: var(--accent);
+      color: white;
+      font-size: 0.75rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 280px 1fr 360px;
+      gap: 0;
+      height: calc(100vh - 80px);
+    }
+
+    @media (max-width: 1100px) {
+      main { grid-template-columns: 1fr; height: auto; }
+      .sidebar, .output-panel { display: none; }
+    }
+
+    /* ── Workflow sidebar ── */
+    .sidebar {
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      overflow-y: auto;
+      background: var(--surface);
+    }
+
+    .sidebar h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 1rem;
+    }
+
+    .step {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+      opacity: 0.4;
+      transition: opacity 0.3s;
+    }
+
+    .step.active, .step.done { opacity: 1; }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .step.active .step-num { border-color: var(--accent); background: var(--accent); color: white; }
+    .step.done .step-num { border-color: var(--done); background: var(--done); color: #0f1117; }
+
+    .step-body { flex: 1; }
+    .step-label { font-size: 0.85rem; font-weight: 600; }
+    .step-agents { font-size: 0.75rem; color: var(--muted); margin-top: 0.15rem; }
+
+    .agent-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      padding: 0.15rem 0.5rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      margin: 0.15rem 0.15rem 0 0;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+    }
+
+    .agent-chip.running { border-color: var(--accent); animation: pulse 1.2s infinite; }
+    .agent-chip.done { border-color: var(--done); background: rgba(134,239,172,0.1); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* ── Chat area ── */
+    .chat-area {
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .msg {
+      max-width: 85%;
+      padding: 0.875rem 1rem;
+      border-radius: var(--radius);
+      font-size: 0.9rem;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .msg.user {
+      align-self: flex-end;
+      background: var(--accent);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .msg.system {
+      align-self: flex-start;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-bottom-left-radius: 4px;
+    }
+
+    .msg.agent {
+      align-self: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      max-width: 95%;
+    }
+
+    .msg-header {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .msg-content {
+      max-height: 300px;
+      overflow-y: auto;
+      font-size: 0.85rem;
+    }
+
+    .msg-content h1, .msg-content h2, .msg-content h3 {
+      font-size: 0.95rem;
+      margin: 0.75rem 0 0.35rem;
+    }
+
+    .input-area {
+      padding: 1rem 1.5rem;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .input-hint {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-bottom: 0.5rem;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 0.75rem;
+    }
+
+    textarea {
+      flex: 1;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      color: var(--text);
+      padding: 0.75rem 1rem;
+      font-size: 0.9rem;
+      font-family: inherit;
+      resize: none;
+      height: 72px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { border-color: var(--accent); }
+
+    button {
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 0 1.5rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      white-space: nowrap;
+    }
+
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* ── Output panel ── */
+    .output-panel {
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: var(--surface);
+    }
+
+    .output-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .output-header h2 { font-size: 0.9rem; font-weight: 700; }
+
+    .download-btn {
+      font-size: 0.75rem;
+      padding: 0.35rem 0.75rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .bible-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1.25rem;
+      font-size: 0.8rem;
+      line-height: 1.7;
+    }
+
+    .bible-content h1 { font-size: 1.1rem; margin-bottom: 0.5rem; }
+    .bible-content h2 { font-size: 0.95rem; margin: 1rem 0 0.4rem; color: var(--accent); }
+    .bible-content hr { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+    .score-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .score-big {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--done);
+    }
+
+    .empty-state {
+      color: var(--muted);
+      text-align: center;
+      padding: 3rem 1rem;
+      font-size: 0.85rem;
+    }
+
+    .loading-dots::after {
+      content: "";
+      animation: dots 1.5s infinite;
+    }
+
+    @keyframes dots {
+      0% { content: ""; }
+      33% { content: "."; }
+      66% { content: ".."; }
+      100% { content: "..."; }
+    }
+
+    .examples {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-top: 0.5rem;
+    }
+
+    .example-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 0.72rem;
+      padding: 0.3rem 0.6rem;
+      border-radius: 999px;
+      cursor: pointer;
+    }
+
+    .example-btn:hover { border-color: var(--accent); color: var(--text); }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>🏢 AI 광고 대행사</h1>
+      <p>한 마디면 7명의 AI 팀원이 캠페인 바이블을 완성합니다</p>
+    </div>
+    <span class="badge" id="statusBadge">준비됨</span>
+  </header>
+
+  <main>
+    <!-- Workflow Sidebar -->
+    <aside class="sidebar">
+      <h2>워크플로우</h2>
+
+      <div class="step" id="step1">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-label">AE 기획</div>
+          <div class="step-agents">
+            <span class="agent-chip" data-agent="ae">📋 AE</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="step2">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-label">카피 작성</div>
+          <div class="step-agents">
+            <span class="agent-chip" data-agent="copywriter">✍️ 카피</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="step3">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-label">4팀 동시 제작</div>
+          <div class="step-agents">
+            <span class="agent-chip" data-agent="image">🖼️ 이미지</span>
+            <span class="agent-chip" data-agent="video">🎬 영상</span>
+            <span class="agent-chip" data-agent="outdoor">🏙️ 옥외</span>
+            <span class="agent-chip" data-agent="innovation">💡 혁신</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="step4">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-label">대표 검수</div>
+          <div class="step-agents">
+            <span class="agent-chip" data-agent="ceo">👔 대표</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="step" id="step5">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-label">캠페인 바이블</div>
+          <div class="step-agents" style="color: var(--done)">📗 완성</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Chat -->
+    <section class="chat-area">
+      <div class="messages" id="messages">
+        <div class="msg system">
+          안녕하세요! AI 광고 대행사입니다. 👋<br><br>
+          브랜드·목표·타겟을 알려주시면 7명의 AI 팀원이 순서대로(그리고 동시에!) 캠페인을 만들어드립니다.<br><br>
+          <strong>예시:</strong><br>
+          네이버 클로바X | AI 교육 서비스 런칭 홍보 | 20~30대 직장인
+        </div>
+      </div>
+
+      <div class="input-area">
+        <div class="input-hint">💡 형식: 브랜드 | 목표 | 타겟 &nbsp;·&nbsp; Enter로 전송, Shift+Enter 줄바꿈</div>
+        <div class="examples">
+          <button class="example-btn" onclick="fillExample(0)">네이버 클로바X AI교육</button>
+          <button class="example-btn" onclick="fillExample(1)">스타벅스 시즌 음료</button>
+          <button class="example-btn" onclick="fillExample(2)">현대차 전기차</button>
+        </div>
+        <div class="input-row" style="margin-top:0.5rem">
+          <textarea id="input" placeholder="브랜드 | 목표 | 타겟 형식으로 입력하세요..."></textarea>
+          <button id="sendBtn" onclick="sendMessage()">캠페인 시작</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Output -->
+    <aside class="output-panel">
+      <div class="output-header">
+        <h2>📗 캠페인 바이블</h2>
+        <button class="download-btn" id="downloadBtn" onclick="downloadBible()" disabled>다운로드</button>
+      </div>
+      <div class="bible-content" id="bibleContent">
+        <div class="empty-state">
+          캠페인이 완성되면<br>여기에 바이블이 표시됩니다
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script>
+    const EXAMPLES = [
+      "네이버 클로바X | AI 교육 서비스 런칭 홍보 | 20~30대 직장인",
+      "스타벅스 | 여름 시즌 음료 프로모션 | 20대 MZ세대",
+      "현대자동차 아이오닉 | 전기차 시장 점유율 확대 | 30~40대 환경意識 소비자",
+    ];
+
+    let isRunning = false;
+    let bibleText = "";
+
+    const AGENT_EMOJI = {
+      ae: "📋", copywriter: "✍️", image: "🖼️",
+      video: "🎬", outdoor: "🏙️", innovation: "💡", ceo: "👔",
+    };
+
+    function fillExample(i) {
+      document.getElementById("input").value = EXAMPLES[i];
+    }
+
+    function addMessage(type, content, header) {
+      const el = document.createElement("div");
+      el.className = `msg ${type}`;
+      if (header) {
+        el.innerHTML = `<div class="msg-header">${header}</div><div class="msg-content">${content}</div>`;
+      } else {
+        el.textContent = content;
+      }
+      document.getElementById("messages").appendChild(el);
+      el.scrollIntoView({ behavior: "smooth", block: "end" });
+      return el;
+    }
+
+    function setStepActive(step) {
+      for (let i = 1; i <= 5; i++) {
+        const el = document.getElementById(`step${i}`);
+        el.classList.remove("active", "done");
+        if (i < step) el.classList.add("done");
+        if (i === step) el.classList.add("active");
+      }
+    }
+
+    function setAgentStatus(agentId, status) {
+      document.querySelectorAll(`[data-agent="${agentId}"]`).forEach(el => {
+        el.classList.remove("running", "done");
+        if (status) el.classList.add(status);
+      });
+    }
+
+    function renderMarkdown(text) {
+      return marked.parse(text);
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById("input");
+      const message = input.value.trim();
+      if (!message || isRunning) return;
+
+      isRunning = true;
+      document.getElementById("sendBtn").disabled = true;
+      document.getElementById("statusBadge").textContent = "작업 중...";
+      input.value = "";
+
+      addMessage("user", message);
+      const loadingEl = addMessage("system", "AI 팀원들이 작업을 시작합니다", "⏳ 진행 중");
+
+      // Reset UI
+      for (let i = 1; i <= 5; i++) {
+        document.getElementById(`step${i}`).classList.remove("active", "done");
+      }
+      document.querySelectorAll(".agent-chip").forEach(el => el.classList.remove("running", "done"));
+      document.getElementById("bibleContent").innerHTML = '<div class="empty-state loading-dots">캠페인 생성 중</div>';
+
+      try {
+        const res = await fetch("/api/campaign/stream", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message }),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.detail || "요청 실패");
+        }
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop();
+
+          for (const part of parts) {
+            if (!part.trim()) continue;
+            const eventMatch = part.match(/^event: (.+)\ndata: (.+)$/s);
+            if (!eventMatch) continue;
+            handleEvent(eventMatch[1], JSON.parse(eventMatch[2]));
+          }
+        }
+      } catch (err) {
+        loadingEl.remove();
+        addMessage("system", `❌ 오류: ${err.message}`);
+      } finally {
+        isRunning = false;
+        document.getElementById("sendBtn").disabled = false;
+        document.getElementById("statusBadge").textContent = "준비됨";
+        loadingEl.remove();
+      }
+    }
+
+    function handleEvent(type, data) {
+      switch (type) {
+        case "step_start":
+          setStepActive(data.step);
+          if (data.rework_round > 0) {
+            addMessage("system", `🔄 재작업 ${data.rework_round}회차 — ${data.label}`);
+          }
+          break;
+
+        case "agent_start":
+          setAgentStatus(data.agent_id, "running");
+          break;
+
+        case "agent_done": {
+          setAgentStatus(data.agent_id, "done");
+          const emoji = AGENT_EMOJI[data.agent_id] || "🤖";
+          const preview = data.content.slice(0, 600) + (data.content.length > 600 ? "\n\n...(계속)" : "");
+          addMessage("agent", renderMarkdown(preview), `${emoji} ${data.name} 완료`);
+
+          if (data.agent_id === "ceo" && data.review) {
+            const r = data.review;
+            addMessage("system",
+              `👔 대표 검수: ${r.overall_score}점 — ${r.passed ? "✅ 통과!" : "⚠️ 재작업 필요"}\n${r.summary}`
+            );
+          }
+          break;
+        }
+
+        case "rework":
+          addMessage("system", `🔄 재작업 지시: ${data.teams.join(", ")}팀`);
+          data.teams.forEach(t => setAgentStatus(t, ""));
+          break;
+
+        case "complete":
+          bibleText = data.bible;
+          document.getElementById("bibleContent").innerHTML = renderMarkdown(data.bible);
+          document.getElementById("downloadBtn").disabled = false;
+          setStepActive(6);
+          for (let i = 1; i <= 5; i++) document.getElementById(`step${i}`).classList.add("done");
+          addMessage("system", "🎉 캠페인 바이블이 완성되었습니다! 오른쪽 패널에서 확인하세요.");
+          break;
+      }
+    }
+
+    function downloadBible() {
+      if (!bibleText) return;
+      const blob = new Blob([bibleText], { type: "text/markdown;charset=utf-8" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "campaign_bible.md";
+      a.click();
+    }
+
+    document.getElementById("input").addEventListener("keydown", e => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+  </script>
+</body>
+</html>
